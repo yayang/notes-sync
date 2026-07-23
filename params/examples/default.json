@@ -1,0 +1,7 @@
+{
+  "LOOKBACK_WINDOW_DAYS": 5,
+  "DRY_RUN": false,
+  "USE_MOCK_SOURCE": false,
+  "LATITUDE": 31.2304,
+  "LONGITUDE": 121.4737
+}

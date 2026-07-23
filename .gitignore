@@ -1,0 +1,44 @@
+# --- 系统相关 (System) ---
+.DS_Store
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# --- 编辑器相关 (IDE) ---
+.vscode/*
+!.vscode/settings.json
+.idea/
+.agent/
+.shared/
+*.swp
+*.swo
+
+# --- 运行日志与临时文件 (Logs/Temp) ---
+*.log
+tmp/
+**/__pycache__/**
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Runtime output and caches
+output/
+.cache/
+
+# --- 敏感信息补充 ---
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+
+# Configuration
+params/*
+!params/examples/
+
+# Local migration data
+scripts/data/

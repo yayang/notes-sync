@@ -1,0 +1,26 @@
+from enum import StrEnum
+
+
+class DiaryKey(StrEnum):
+    NAME = "Name"
+    FOCUS_HOURS = "Focus Hours"
+    PLAY_HOURS = "Play Hours"
+    SLEEP_HOURS = "Sleep Hours"
+    ROUTINE_HOURS = "Routine Hours"
+    STATUS = "Status"
+    TAGS = "Tags"
+    DATE = "Date"
+    BED_TIME_PREV = "Bed Time Prev"
+    BED_STATUS_PREV = "Bed Status Prev"
+    GETUP_TIME = "Getup Time"
+    GETUP_STATUS = "Getup Status"
+    STEPS = "Steps"
+    LINGER_MINUTES = "Linger Minutes"
+    STATISTICS = "Statistics"
+    TIME_ENTRIES = "Time Entries"
+    ICON = "Icon"
+    TEMP_HIGH = "Temp High"
+    TEMP_LOW = "Temp Low"
+    WEATHER = "Weather"
+    AIR_QUALITY = "Air Quality"
+    PM25 = "PM2.5"
