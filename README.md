@@ -1,5 +1,7 @@
 # Notes Sync
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 Synchronize Toggl Track time entries to Notion and Obsidian.
 
 Notes Sync uses short-lived commands instead of a resident background service.
