@@ -1,3 +1,6 @@
+# Status字段
+
+current
 
 # Statistics字段
 

@@ -37,7 +37,7 @@ class ObsidianDiaryTrans(DiarySinkTransformer[str]):
         props = KVProxy(
             {
                 DiaryKey.DATE.value: diary.date.date().isoformat(),
-                DiaryKey.STATUS.value: diary.status or "Active",
+                DiaryKey.STATUS.value: diary.status or "current",
             },
             sync_decision.skip_fields,
         )

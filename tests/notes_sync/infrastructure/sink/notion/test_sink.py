@@ -22,6 +22,7 @@ class TestNotionDiaryTrans:
         trans = NotionDiaryTrans()
         diary = Diary(
             date=datetime(2026, 1, 1),
+            status=None,
             report=DiaryReport(
                 sleep=SleepReport(
                     bed_time="23:30",
@@ -35,6 +36,7 @@ class TestNotionDiaryTrans:
         # transform now returns formatted_data required by sink
         props = trans.transform(diary, SyncDecision(action=SyncAction.UPDATE))
 
+        assert props[DiaryKey.STATUS] == "current"
         assert props[DiaryKey.BED_TIME_PREV] == "23:30"
         assert props[DiaryKey.BED_STATUS_PREV] == "on_time"
         assert props[DiaryKey.GETUP_TIME] == "07:00"

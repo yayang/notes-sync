@@ -113,4 +113,4 @@ class Diary(BaseNote):
     time_entries: list[TimeEntry] = Field(default_factory=list)
     report: DiaryReport = Field(default_factory=DiaryReport)
     sync_contexts: dict[SinkName, DiarySyncContext] = Field(default_factory=dict)
-    status: Optional[str] = "active"
+    status: Optional[str] = "current"

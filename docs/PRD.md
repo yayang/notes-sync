@@ -67,4 +67,4 @@ FIELD_MAP 定义在
 
 ### 归档保护 (Archive Protection)
 
-当 Notion 或 Obsidian 中的日记被标记为 `status: Archived` 时，同步程序会自动跳过该日期，**绝对不会覆盖**已归档的内容。
+当 Notion 或 Obsidian 中的日记被标记为 `status: archived` 时，同步程序会自动跳过该日期，**绝对不会覆盖**已归档的内容。

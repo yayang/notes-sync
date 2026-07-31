@@ -26,7 +26,7 @@ class TestObsidianSyncContextSource:
             # Create diary file structure
             file_path = Path(tmpdir) / "70_Journal/2026/01/2026-01-01.md"
             file_path.parent.mkdir(parents=True)
-            file_path.write_text("---\nstatus: Active\n---\nContent", encoding="utf-8")
+            file_path.write_text("---\nstatus: current\n---\nContent", encoding="utf-8")
 
             source = ObsidianSyncContextSource(tmpdir)
             result = source.fetch_raw_data(date(2026, 1, 1), date(2026, 1, 1))
@@ -34,7 +34,7 @@ class TestObsidianSyncContextSource:
             assert len(result) == 1
             assert result[0]["date"] == date(2026, 1, 1)
             assert result[0]["file_path"] == str(file_path)
-            assert "status: Active" in result[0]["content"]
+            assert "status: current" in result[0]["content"]
 
     def test_fetch_raw_data_missing_file(self):
         with TemporaryDirectory() as tmpdir:
@@ -54,7 +54,7 @@ class TestObsidianSyncContextTrans:
             {
                 "date": date(2026, 1, 1),
                 "file_path": "/vault/diary.md",
-                "content": "---\nstatus: Active\nsteps: 5000\n---\nContent",
+                "content": "---\nstatus: current\nsteps: 5000\n---\nContent",
             }
         ]
 
@@ -63,7 +63,7 @@ class TestObsidianSyncContextTrans:
         assert date(2026, 1, 1) in result
         context = result[date(2026, 1, 1)]
         assert context.remote_id == "/vault/diary.md"
-        assert context.status == "Active"
+        assert context.status == "current"
         assert context.steps == 5000
 
     def test_to_context_missing_file(self):

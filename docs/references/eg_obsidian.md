@@ -3,7 +3,7 @@ Obsidian, 注意, 不要覆盖 ## 📝 记录 的内容
 ---
 
 date: 2025-12-14
-status: active
+status: current
 
 # ✅ 核心指标进入元数据 (方便绘图统计)
 

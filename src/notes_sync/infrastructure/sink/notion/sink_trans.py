@@ -36,7 +36,7 @@ class NotionDiaryTrans(DiarySinkTransformer[dict[str, Any]]):
         # 7. Weather
         self.__apply_weather_stats(props, report.weather)
 
-        props[DiaryKey.STATUS] = diary.status
+        props[DiaryKey.STATUS] = diary.status or "current"
 
         return props.unwrap()
 

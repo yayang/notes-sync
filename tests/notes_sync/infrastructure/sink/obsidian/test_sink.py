@@ -24,6 +24,7 @@ class TestObsidianDiaryTrans:
 
         content = trans.transform(diary, SyncDecision())
 
+        assert f"{DiaryKey.STATUS.value}: current" in content
         assert SectionKey.USER_RECORD in content
         assert SectionKey.STATISTICS in content
         assert SectionKey.TIME_ENTRIES in content

@@ -23,7 +23,11 @@ class FakeContextTrans:
 
 class FakeTransformer:
     def transform(self, diary, decision):
-        return {"date": diary.date.date(), "action": decision.action}
+        return {
+            "date": diary.date.date(),
+            "status": diary.status,
+            "action": decision.action,
+        }
 
 
 class FakeSink:
@@ -61,6 +65,7 @@ def test_creates_only_when_diary_is_missing():
     workflow.run(target_date)
 
     assert len(missing_sink.calls) == 1
+    assert missing_sink.calls[0][1]["status"] == "current"
     assert missing_sink.calls[0][-1].action == SyncAction.CREATE
     assert existing_sink.calls == []
 

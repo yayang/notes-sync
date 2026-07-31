@@ -66,7 +66,7 @@ def test_notion_context_trans():
         {
             "id": "page_id_000",
             "properties": {
-                DiaryKey.STATUS: {"select": {"name": "Active"}},
+                DiaryKey.STATUS: {"select": {"name": "current"}},
             },
         },
     ]
