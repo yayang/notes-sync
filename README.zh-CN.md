@@ -94,6 +94,7 @@ vault 前，请先检查并调整。
 ## 文档
 
 - [使用手册](docs/manual.md)
+- [接入](docs/INTEGRATIONS.zh-CN.md)
 - [产品需求](docs/PRD.md)
 - [架构](docs/ARCHITECTURE.md)
 - [安全策略](SECURITY.md)

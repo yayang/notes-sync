@@ -98,6 +98,7 @@ before connecting the project to your own Notion workspace or Obsidian vault.
 ## Documentation
 
 - [Manual](docs/manual.md)
+- [Integrations](docs/INTEGRATIONS.md)
 - [Product requirements](docs/PRD.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Security policy](SECURITY.md)
