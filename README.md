@@ -69,7 +69,7 @@ Run these commands from the repository root.
 - `com.notes-sync.create-diary`: creates the daily diary at its configured
   `Hour` and `Minute`.
 
-Application logs are written to `~/Library/Logs/notes-sync/notes_sync.log`; launchd output is written to `hourly.log` and `create-diary.log` in the same directory. `80_Runtime/20_Logs/notes-sync/` is a workspace symlink for convenient access. macOS may coalesce a missed calendar-based run after the computer wakes.
+Application logs are written to `~/Library/Logs/notes-sync/notes_sync.log`; launchd output is written to `hourly.log` and `create-diary.log` in the same directory. Set `WORKSPACE_RUNTIME_DIR` to create an optional `$WORKSPACE_RUNTIME_DIR/20_Logs/notes-sync/` viewing symlink. The application never depends on that link. macOS may coalesce a missed calendar-based run after the computer wakes.
 
 ## Development
 

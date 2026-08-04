@@ -4,7 +4,8 @@ PYTHON := ./.venv/bin/python
 UV := uv
 SHORTCUTS_OUT := output/shortcuts
 LOG_DIR ?= $(HOME)/Library/Logs/notes-sync
-LOG_LINK ?= $(HOME)/Developer/10_Workspace/80_Runtime/20_Logs/notes-sync
+WORKSPACE_RUNTIME_DIR ?=
+LOG_LINK := $(if $(strip $(WORKSPACE_RUNTIME_DIR)),$(WORKSPACE_RUNTIME_DIR)/20_Logs/notes-sync,)
 LOG_FILE := $(LOG_DIR)/notes_sync.log
 PROJECT_ROOT := $(abspath .)
 LAUNCH_AGENTS_DIR := $(HOME)/Library/LaunchAgents
@@ -20,12 +21,15 @@ install: ## Install dependencies using uv
 
 ##@ Tasks
 prepare-logs:
-	@mkdir -p "$(LOG_DIR)" "$(dir $(LOG_LINK))"
-	@if [ -e "$(LOG_LINK)" ] && [ ! -L "$(LOG_LINK)" ]; then \
-		echo "Log entry exists and is not a symlink: $(LOG_LINK)"; \
-		exit 1; \
+	@mkdir -p "$(LOG_DIR)"
+	@if [ -n "$(LOG_LINK)" ]; then \
+		mkdir -p "$(dir $(LOG_LINK))"; \
+		if [ -e "$(LOG_LINK)" ] && [ ! -L "$(LOG_LINK)" ]; then \
+			echo "Log entry exists and is not a symlink: $(LOG_LINK)"; \
+			exit 1; \
+		fi; \
+		ln -sfn "$(LOG_DIR)" "$(LOG_LINK)"; \
 	fi
-	@ln -sfn "$(LOG_DIR)" "$(LOG_LINK)"
 
 run: prepare-logs ## Run the sync tool (usage: make run [config=params/default.json])
 	@NOTES_SYNC_LOG_DIR="$(LOG_DIR)" PYTHONPATH=src $(PYTHON) -m notes_sync.cli run --config $(or $(config),params/default.json)
