@@ -52,7 +52,7 @@ Run these commands from the repository root.
    make run
    ```
 
-   Verify: `output/notes_sync.log` contains a completed sync cycle.
+   Verify: `~/Library/Logs/notes-sync/notes_sync.log` contains a completed sync cycle.
 
 4. On macOS, install and restart both schedules.
 
@@ -69,8 +69,7 @@ Run these commands from the repository root.
 - `com.notes-sync.create-diary`: creates the daily diary at its configured
   `Hour` and `Minute`.
 
-Both jobs write to `output/notes_sync.log`. macOS may coalesce a missed
-calendar-based run after the computer wakes.
+Application logs are written to `~/Library/Logs/notes-sync/notes_sync.log`; launchd output is written to `hourly.log` and `create-diary.log` in the same directory. `80_Runtime/20_Logs/notes-sync/` is a workspace symlink for convenient access. macOS may coalesce a missed calendar-based run after the computer wakes.
 
 ## Development
 

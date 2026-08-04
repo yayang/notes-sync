@@ -73,7 +73,8 @@ cp params/examples/default.json params/default.json
 - `src/`: Source code
 - `params/`: Configuration files
 - `docs/`: Documentation (PRD, Architecture)
-- `output/`: Runtime logs
+- `~/Library/Logs/notes-sync/`: Runtime logs
+- `80_Runtime/20_Logs/notes-sync`: Workspace symlink to the log directory
 
 # Official Free Plan Limit
 

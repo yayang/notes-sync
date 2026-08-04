@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -6,6 +7,12 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+DEFAULT_LOG_DIR = Path(
+    os.environ.get(
+        "NOTES_SYNC_LOG_DIR",
+        Path.home() / "Library" / "Logs" / "notes-sync",
+    )
+)
 
 
 class RetryConfig(BaseModel):
@@ -14,7 +21,7 @@ class RetryConfig(BaseModel):
 
 
 class LogConfig(BaseModel):
-    file_path: str = str(PROJECT_ROOT / "output" / "notes_sync.log")
+    file_path: str = str(DEFAULT_LOG_DIR / "notes_sync.log")
     max_bytes: int = 10 * 1024 * 1024
     backup_count: int = 5
 

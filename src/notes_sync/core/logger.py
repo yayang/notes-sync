@@ -1,5 +1,6 @@
 import logging
 import sys
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from typing import TextIO
 
@@ -18,6 +19,7 @@ def setup_logging(config: LogConfig):
     _reset_handlers(root_logger)
 
     # 2. File Handler (Rotating)
+    Path(config.file_path).parent.mkdir(parents=True, exist_ok=True)
     file_handler = RotatingFileHandler(
         config.file_path,
         maxBytes=config.max_bytes,

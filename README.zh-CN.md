@@ -51,7 +51,7 @@ LaunchAgent 分别负责每小时同步和每日日记创建。
     make run
     ```
 
-    验证：`output/notes_sync.log` 包含已完成的同步记录。
+    验证：`~/Library/Logs/notes-sync/notes_sync.log` 包含已完成的同步记录。
 
 4. 在 macOS 上安装并重启两个定时任务。
 
@@ -67,8 +67,7 @@ LaunchAgent 分别负责每小时同步和每日日记创建。
 - `com.notes-sync.hourly`：每小时整点执行同步。
 - `com.notes-sync.create-diary`：在配置的 `Hour` 和 `Minute` 创建每日日记。
 
-两个任务都将日志写入 `output/notes_sync.log`。电脑唤醒后，macOS 可能合并补跑
-错过的 calendar-based 任务。
+应用日志写入 `~/Library/Logs/notes-sync/notes_sync.log`；launchd 输出写入同目录的 `hourly.log` 与 `create-diary.log`。`80_Runtime/20_Logs/notes-sync/` 是查看用软链接。电脑唤醒后，macOS 可能合并补跑错过的 calendar-based 任务。
 
 ## 开发
 

@@ -1,9 +1,11 @@
-.PHONY: install run create-diary restart-schedules check audit clean help build-shortcuts
+.PHONY: install run create-diary restart-schedules check audit clean help build-shortcuts prepare-logs
 
 PYTHON := ./.venv/bin/python
 UV := uv
 SHORTCUTS_OUT := output/shortcuts
-LOG_FILE := output/notes_sync.log
+LOG_DIR ?= $(HOME)/Library/Logs/notes-sync
+LOG_LINK ?= $(HOME)/Developer/10_Workspace/80_Runtime/20_Logs/notes-sync
+LOG_FILE := $(LOG_DIR)/notes_sync.log
 PROJECT_ROOT := $(abspath .)
 LAUNCH_AGENTS_DIR := $(HOME)/Library/LaunchAgents
 LAUNCHD_LABELS := com.notes-sync.hourly com.notes-sync.create-diary
@@ -17,21 +19,29 @@ install: ## Install dependencies using uv
 	$(UV) sync
 
 ##@ Tasks
-run: ## Run the sync tool (usage: make run [config=params/default.json])
-	@PYTHONPATH=src $(PYTHON) -m notes_sync.cli run --config $(or $(config),params/default.json)
+prepare-logs:
+	@mkdir -p "$(LOG_DIR)" "$(dir $(LOG_LINK))"
+	@if [ -e "$(LOG_LINK)" ] && [ ! -L "$(LOG_LINK)" ]; then \
+		echo "Log entry exists and is not a symlink: $(LOG_LINK)"; \
+		exit 1; \
+	fi
+	@ln -sfn "$(LOG_DIR)" "$(LOG_LINK)"
 
-create-diary: ## Create today's missing diary entries
-	@PYTHONPATH=src $(PYTHON) -m notes_sync.cli create-diary --config $(or $(config),params/default.json)
+run: prepare-logs ## Run the sync tool (usage: make run [config=params/default.json])
+	@NOTES_SYNC_LOG_DIR="$(LOG_DIR)" PYTHONPATH=src $(PYTHON) -m notes_sync.cli run --config $(or $(config),params/default.json)
+
+create-diary: prepare-logs ## Create today's missing diary entries
+	@NOTES_SYNC_LOG_DIR="$(LOG_DIR)" PYTHONPATH=src $(PYTHON) -m notes_sync.cli create-diary --config $(or $(config),params/default.json)
 
 ##@ Scheduling
-restart-schedules: ## Deploy, reload, and immediately run both schedules
+restart-schedules: prepare-logs ## Deploy, reload, and immediately run both schedules
 	@mkdir -p "$(LAUNCH_AGENTS_DIR)"
-	@mkdir -p "$(PROJECT_ROOT)/output"
 	@set -e; for label in $(LAUNCHD_LABELS); do \
 		destination="$(LAUNCH_AGENTS_DIR)/$$label.plist"; \
 		temporary="$$destination.tmp"; \
 		$(PYTHON) scripts/render_launchd.py \
 			--project-root "$(PROJECT_ROOT)" \
+			--log-dir "$(LOG_DIR)" \
 			--output "$$temporary" \
 			"$(PROJECT_ROOT)/deploy/macos/$$label.plist"; \
 		mv -f "$$temporary" "$$destination"; \
@@ -42,7 +52,7 @@ restart-schedules: ## Deploy, reload, and immediately run both schedules
 		launchctl bootout "gui/$$uid/$$label" 2>/dev/null || true; \
 		launchctl bootstrap "gui/$$uid" "$$plist"; \
 	done
-	@echo "Schedules restarted. Logs: $(PROJECT_ROOT)/$(LOG_FILE)"
+	@echo "Schedules restarted. Logs: $(LOG_FILE)"
 
 ##@ Development
 check: ## Run type checking and tests
@@ -65,4 +75,3 @@ clean: ## Clean up cache and temporary files
 	rm -rf .mypy_cache
 	rm -rf __pycache__
 	find . -type d -name "__pycache__" -delete
-	rm -f output/*.log
