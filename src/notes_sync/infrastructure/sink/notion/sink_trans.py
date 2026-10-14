@@ -1,6 +1,7 @@
 from typing import Any
 
 from notes_sync.core.protocols import DiarySinkTransformer
+from notes_sync.infrastructure.sink.formatting import format_time_range
 from notes_sync.infrastructure.sink.notion.mapping import DiaryKey
 from notes_sync.models.models import Diary
 from notes_sync.models.schema import KVProxy, SyncDecision
@@ -64,10 +65,8 @@ class NotionDiaryTrans(DiarySinkTransformer[dict[str, Any]]):
         """Format time entries as readable string (local timezone)."""
         lines = []
         for entry in entries:
-            start = entry.start.strftime("%H:%M")
-            end = entry.end.strftime("%H:%M")
             content = entry.content or entry.sub_category or "N/A"
-            lines.append(f"{start}-{end}: {content}")
+            lines.append(f"{format_time_range(entry)}: {content}")
         return "\n".join(lines)
 
     def __apply_time_stats(self, props: KVProxy, time_report: dict[str, Any]) -> None:

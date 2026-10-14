@@ -4,6 +4,7 @@ from typing import Any
 import yaml
 
 from notes_sync.core.protocols import DiarySinkTransformer
+from notes_sync.infrastructure.sink.formatting import format_time_range
 from notes_sync.infrastructure.sink.obsidian.mapping import (
     DiaryKey,
     SectionKey,
@@ -102,10 +103,8 @@ class ObsidianDiaryTrans(DiarySinkTransformer[str]):
         """Build TIME_ENTRIES section."""
         lines = []
         for entry in diary.time_entries:
-            start = entry.start.strftime("%H:%M")
-            end = entry.end.strftime("%H:%M")
             content = entry.content or entry.sub_category or "N/A"
-            lines.append(f"- {start}-{end}: {content}")
+            lines.append(f"- {format_time_range(entry)}: {content}")
 
         entries_str = "\n".join(lines) if lines else ""
         return f"{SectionKey.TIME_ENTRIES}\n{entries_str}"
