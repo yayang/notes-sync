@@ -9,11 +9,6 @@
 		<key>PYTHONPATH</key>
 		<string>{{PROJECT_ROOT}}/src</string>
 	</dict>
-	<key>KeepAlive</key>
-	<dict>
-		<key>SuccessfulExit</key>
-		<false/>
-	</dict>
 	<key>Label</key>
 	<string>com.notes-sync.hourly</string>
 	<key>ProgramArguments</key>
@@ -25,6 +20,8 @@
 		<string>--config</string>
 		<string>{{PROJECT_ROOT}}/params/default.json</string>
 	</array>
+	<key>RunAtLoad</key>
+	<true/>
 	<key>StandardErrorPath</key>
 	<string>{{LOG_DIR}}/hourly.log</string>
 	<key>StandardOutPath</key>
@@ -34,8 +31,6 @@
 		<key>Minute</key>
 		<integer>0</integer>
 	</dict>
-	<key>ThrottleInterval</key>
-	<integer>60</integer>
 	<key>WorkingDirectory</key>
 	<string>{{PROJECT_ROOT}}</string>
 </dict>

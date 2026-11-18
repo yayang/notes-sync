@@ -23,6 +23,12 @@ class DefaultDiarySyncGuard(DiarySyncGuard):
             sync_decision.action = SyncAction.SKIP
             return sync_decision
 
+        # The generated statistics also depend on the time entries.
+        if context.has_time_entries and not diary.time_entries:
+            logger.warning("Skip empty time-entry update for %s", diary.date.date())
+            sync_decision.action = SyncAction.SKIP
+            return sync_decision
+
         self.__check_overlaps(diary)
 
         if not context.remote_id:

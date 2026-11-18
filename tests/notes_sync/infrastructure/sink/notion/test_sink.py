@@ -1,6 +1,11 @@
+import json
 from datetime import date, datetime
 from unittest.mock import patch
 
+import httpx
+import pytest
+
+from notes_sync.core.protocols import RetryableSinkError
 from notes_sync.infrastructure.sink.notion.mapping import DiaryKey
 from notes_sync.infrastructure.sink.notion.sink import NotionSink
 from notes_sync.infrastructure.sink.notion.sink_trans import NotionDiaryTrans
@@ -109,6 +114,157 @@ class TestNotionDiaryTrans:
 
 
 class TestNotionSink:
+    def test_writes_long_rich_text_without_losing_content(self, monkeypatch):
+        content = "汉" * 1999 + "😀\n" + "条目" * 600
+
+        def accept_valid_payload(request):
+            properties = json.loads(request.content)["properties"]
+            entries = properties[DiaryKey.TIME_ENTRIES]["rich_text"]
+            chunks = [entry["text"]["content"] for entry in entries]
+            assert len(chunks) > 1
+            assert max(len(chunk.encode("utf-16-le")) // 2 for chunk in chunks) <= 2000
+            assert "".join(chunks) == content
+            assert properties[DiaryKey.BED_TIME_PREV]["rich_text"] == [
+                {"text": {"content": ""}}
+            ]
+            return httpx.Response(200, json={})
+
+        self._mock_http(monkeypatch, accept_valid_payload)
+        self._update_time_entries(content)
+
+    def test_rejects_oversize_rich_text_before_sending(self, monkeypatch):
+        def unexpected_request(request):
+            pytest.fail(f"Unexpected {request.method} request")
+
+        self._mock_http(monkeypatch, unexpected_request)
+        with pytest.raises(ValueError, match="exceeds 100 elements"):
+            self._update_time_entries("x" * 200001)
+
+    @pytest.mark.parametrize(
+        ("status", "headers", "body", "retryable"),
+        [
+            (400, {}, {"code": "validation_error"}, False),
+            (429, {"Retry-After": "5"}, {"code": "rate_limited"}, True),
+            (429, {"Retry-After": "6"}, {"code": "rate_limited"}, False),
+            (429, {}, {"code": "rate_limited"}, False),
+            (429, {"Retry-After": "unknown"}, {"code": "rate_limited"}, False),
+            (
+                429,
+                {"Retry-After": "5"},
+                {"additional_data": {"rate_limit_reason": "public_api_request_blocked"}},
+                False,
+            ),
+            (503, {}, {}, False),
+        ],
+    )
+    def test_classifies_http_write_failures(
+        self, monkeypatch, status, headers, body, retryable
+    ):
+        def reject(request):
+            return httpx.Response(status, headers=headers, json=body)
+
+        self._mock_http(monkeypatch, reject)
+        with pytest.raises(RuntimeError, match=f"Notion API failed: {status}") as raised:
+            self._update_time_entries("work")
+
+        assert isinstance(raised.value, RetryableSinkError) is retryable
+
+    @pytest.mark.parametrize(
+        ("failure", "expected"),
+        [
+            (httpx.ConnectError, RetryableSinkError),
+            (httpx.ConnectTimeout, RetryableSinkError),
+            (httpx.ReadTimeout, httpx.ReadTimeout),
+            (httpx.WriteTimeout, httpx.WriteTimeout),
+        ],
+    )
+    def test_classifies_connection_failures(self, monkeypatch, failure, expected):
+        def fail(request):
+            raise failure("Network failure", request=request)
+
+        self._mock_http(monkeypatch, fail)
+        with pytest.raises(expected, match="Network failure"):
+            self._update_time_entries("work")
+
+    @pytest.mark.parametrize(("delay", "rejections"), [(6, 1), (5, 2)])
+    def test_cools_down_later_dates_after_rate_limit(self, monkeypatch, delay, rejections):
+        now = 100.0
+        calls = []
+        monkeypatch.setattr(
+            "notes_sync.infrastructure.sink.notion.sink.monotonic", lambda: now
+        )
+
+        def respond(request):
+            calls.append(request.url.path)
+            if len(calls) <= rejections:
+                return httpx.Response(429, headers={"Retry-After": str(delay)}, json={})
+            return httpx.Response(200, json={})
+
+        self._mock_http(monkeypatch, respond)
+        sink = NotionSink(token="test_token", db_id="test_db_id")
+        first_date = date(2026, 11, 15)
+        next_date = date(2026, 11, 16)
+        if rejections == 2:
+            with pytest.raises(RetryableSinkError):
+                self._update_time_entries("work", sink, first_date)
+            now += delay
+        with pytest.raises(RuntimeError, match="Notion API failed: 429"):
+            self._update_time_entries("work", sink, first_date)
+        now += delay - 1
+        with pytest.raises(RuntimeError, match="Notion write deferred"):
+            self._update_time_entries("work", sink, next_date)
+        assert len(calls) == rejections
+
+        now += 1
+        self._update_time_entries("work", sink, next_date)
+        assert len(calls) == rejections + 1
+
+    @pytest.mark.parametrize(
+        ("headers", "body"),
+        [
+            ({}, {}),
+            ({"Retry-After": "unknown"}, {}),
+            (
+                {"Retry-After": "5"},
+                {"additional_data": {"rate_limit_reason": "public_api_request_blocked"}},
+            ),
+        ],
+    )
+    def test_defers_indefinite_rate_limit_for_the_run(self, monkeypatch, headers, body):
+        now = 100.0
+        calls = []
+        monkeypatch.setattr(
+            "notes_sync.infrastructure.sink.notion.sink.monotonic", lambda: now
+        )
+
+        def reject(request):
+            calls.append(request.url.path)
+            return httpx.Response(429, headers=headers, json=body)
+
+        self._mock_http(monkeypatch, reject)
+        sink = NotionSink(token="test_token", db_id="test_db_id")
+        with pytest.raises(RuntimeError, match="Notion API failed: 429"):
+            self._update_time_entries("work", sink)
+        now += 3600
+        with pytest.raises(RuntimeError, match="Notion write deferred"):
+            self._update_time_entries("work", sink, date(2026, 11, 16))
+        assert len(calls) == 1
+
+    def _mock_http(self, monkeypatch, handler):
+        client = httpx.Client
+        transport = httpx.MockTransport(handler)
+        monkeypatch.setattr(httpx, "Client", lambda: client(transport=transport))
+
+    def _update_time_entries(self, content, sink=None, diary_date=date(2026, 11, 15)):
+        if sink is None:
+            sink = NotionSink(token="test_token", db_id="test_db_id")
+        sink.sink_data(
+            diary_date,
+            {DiaryKey.TIME_ENTRIES: content, DiaryKey.BED_TIME_PREV: ""},
+            DiarySyncContext(remote_id=f"page_{diary_date.isoformat()}"),
+            SyncDecision(action=SyncAction.UPDATE),
+        )
+
     def test_sink_data_creates_new_page(self):
         """When remote_id is None in data tuple, should call POST."""
         sink = NotionSink(token="test_token", db_id="test_db_id")

@@ -19,9 +19,17 @@ class NotionSyncContextTrans(DiarySyncContextTransformer):
                 remote_id=page.get("id"),
                 status=self.__extract_select(props, DiaryKey.STATUS),
                 steps=self.__extract_number(props, DiaryKey.STEPS),
+                has_time_entries=self.__has_time_entries(props),
             )
 
         return result
+
+    def __has_time_entries(self, props: dict) -> bool:
+        entries = props.get(DiaryKey.TIME_ENTRIES, {}).get("rich_text", [])
+        return any(
+            item.get("plain_text", item.get("text", {}).get("content", "")).strip()
+            for item in entries
+        )
 
     def __extract_date(self, page: dict) -> Optional[date]:
         """Extract date from title with date mention."""

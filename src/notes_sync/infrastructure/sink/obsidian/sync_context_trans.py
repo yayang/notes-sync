@@ -1,11 +1,16 @@
+import re
 from datetime import date
 from typing import Any
 
 import yaml
 
 from notes_sync.core.protocols import DiarySyncContextTransformer
-from notes_sync.infrastructure.sink.obsidian.mapping import DiaryKey
+from notes_sync.infrastructure.sink.obsidian.mapping import DiaryKey, SectionKey
 from notes_sync.models.models import DiarySyncContext
+
+_TIME_ENTRIES_HEADING = re.compile(
+    rf" {{0,3}}{re.escape(SectionKey.TIME_ENTRIES)}(?:[ \t]+#+)?[ \t]*"
+)
 
 
 class ObsidianSyncContextTrans(DiarySyncContextTransformer):
@@ -35,9 +40,17 @@ class ObsidianSyncContextTrans(DiarySyncContextTransformer):
                 remote_id=file_path,  # file path as Sink-side identity
                 status=yaml_data.get(DiaryKey.STATUS),
                 steps=yaml_data.get(DiaryKey.STEPS),
+                has_time_entries=self.__has_time_entries(content or ""),
             )
 
         return result
+
+    def __has_time_entries(self, content: str) -> bool:
+        lines = content.splitlines()
+        for index, line in enumerate(lines):
+            if _TIME_ENTRIES_HEADING.fullmatch(line):
+                return any(entry.strip() for entry in lines[index + 1 :])
+        return False
 
     def __extract_yaml(self, content: str) -> dict:
         """Extract YAML frontmatter from markdown content."""

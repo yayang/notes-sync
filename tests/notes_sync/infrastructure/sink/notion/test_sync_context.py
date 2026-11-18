@@ -26,6 +26,12 @@ def test_notion_context_trans():
                 },
                 DiaryKey.STATUS: {"select": {"name": "archived"}},
                 DiaryKey.STEPS: {"number": 5000},
+                DiaryKey.TIME_ENTRIES: {
+                    "rich_text": [
+                        {"plain_text": " "},
+                        {"plain_text": "09:00–10:00: Work"},
+                    ]
+                },
             },
         },
         # Partial data (no status/steps)
@@ -43,6 +49,7 @@ def test_notion_context_trans():
                         }
                     ]
                 },
+                DiaryKey.TIME_ENTRIES: {"rich_text": [{"plain_text": ""}]},
             },
         },
         # Invalid date
@@ -78,12 +85,14 @@ def test_notion_context_trans():
     assert context[date(2026, 1, 1)].remote_id == "page_id_123"
     assert context[date(2026, 1, 1)].status == "archived"
     assert context[date(2026, 1, 1)].steps == 5000
+    assert context[date(2026, 1, 1)].has_time_entries
 
     # Verify second entry
     assert date(2026, 1, 2) in context
     assert context[date(2026, 1, 2)].remote_id == "page_id_456"
     assert context[date(2026, 1, 2)].status is None
     assert context[date(2026, 1, 2)].steps is None
+    assert not context[date(2026, 1, 2)].has_time_entries
 
     # Invalid and missing dates should be skipped
     assert len(context) == 2

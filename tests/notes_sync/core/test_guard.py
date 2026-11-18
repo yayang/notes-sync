@@ -60,6 +60,21 @@ def test_sync_guard_archived_status():
     assert decision.action == SyncAction.SKIP
 
 
+def test_sync_guard_preserves_existing_entries_when_source_is_empty():
+    guard = DefaultDiarySyncGuard()
+    day = datetime(2026, 11, 14)
+    diary = Diary(date=day)
+    context = DiarySyncContext(remote_id="existing", has_time_entries=True)
+
+    assert guard.evaluate(diary, context).action == SyncAction.SKIP
+    assert guard.evaluate(
+        diary, DiarySyncContext(remote_id="blank")
+    ).action == SyncAction.UPDATE
+
+    diary.time_entries.append(TimeEntry(start=day, end=day + timedelta(hours=1)))
+    assert guard.evaluate(diary, context).action == SyncAction.UPDATE
+
+
 def test_sync_guard_skip_steps():
     """Guard should add 'steps' to skip_fields if context.steps > diary.steps."""
     guard = DefaultDiarySyncGuard()

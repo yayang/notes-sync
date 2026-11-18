@@ -68,20 +68,6 @@ class TogglSource(DiarySource):
 
             # 元数据补全 (Enrichment): 利用缓存和懒加载
             return [self._hydrate_entry(e) for e in raw_entries]
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 402:
-                logger.error(
-                    "Toggl API returned 402 Payment Required. Check your workspace subscription/trial status."
-                )
-                # We return empty list to prevent crash effectively acting as "no data" if user wants to catch it.
-                # Or re-raise with friendly message? User said "catch this".
-                # "caught" usually implies handling it. Returning empty list allows workflow to continue (though data is missing).
-                # But missing main data source usually makes the rest useless.
-                # Let's re-raise a specific known error or just log and return empty if that's safer.
-                # Returning empty list is safest "catch".
-                return []
-            logger.error(f"Failed to fetch Toggl data: {e}")
-            raise
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to fetch Toggl data: {e}")
             raise

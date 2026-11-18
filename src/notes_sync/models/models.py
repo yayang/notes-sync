@@ -106,6 +106,7 @@ class DiarySyncContext(BaseModel):
     remote_id: Optional[str] = None  # Sink-side identity (Notion page_id, etc.)
     status: Optional[str] = None
     steps: Optional[int] = None
+    has_time_entries: bool = False
 
 
 class Diary(BaseNote):

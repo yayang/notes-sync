@@ -1,11 +1,14 @@
 import logging
 from datetime import date, datetime, timedelta
+from time import sleep
 
 from notes_sync.config.settings import get_settings
 from notes_sync.core.builder import SinkProvider, SourceProvider
 from notes_sync.core.protocols import (
+    SINK_RETRY_DELAY_SECONDS,
     DiaryEnricher,
     DiarySyncGuard,
+    RetryableSinkError,
 )
 from notes_sync.models.models import Diary, DiarySyncContext
 from notes_sync.models.schema import SyncAction
@@ -83,35 +86,45 @@ class SyncDiaryWorkflow:
         failures = []
         for chnl in self.sink_providers:
             try:
-                # 1. Fetch Remote Context
                 ctx_raw = chnl.ctx_source.fetch_raw_data(start, end)
                 contexts = chnl.ctx_trans.to_context(ctx_raw)
-
-                # 2. Evaluate & Transform & Sink
-                for d, diary in base_mapping.items():
-                    context = (
-                        contexts.get(d) or DiarySyncContext()
-                    )  # Ensure context is not None
-                    diary.sync_contexts[chnl.name] = context
-
-                    # Guard evaluates global policy (returns SyncDecision)
-                    sync_decision = self.sync_guard.evaluate(diary, context)
-                    if sync_decision.action == SyncAction.SKIP:
-                        continue
-
-                    # Transform uses SyncDecision
-                    transformed_data = chnl.s_trans.transform(diary, sync_decision)
-
-                    # 3. Sink (Per item)
-                    try:
-                        chnl.sink.sink_data(d, transformed_data, context, sync_decision)
-                    except Exception as e:
-                        logger.error(f"[SinkError] {chnl.name} failed for {d}: {e}")
-                        failures.append(f"{chnl.name}/{d}: {e}")
-
             except Exception as e:
                 logger.error(f"[ProviderError] {chnl.name} failed: {e}")
                 failures.append(f"{chnl.name}: {e}")
+                continue
+
+            for day, diary in base_mapping.items():
+                context = contexts.get(day) or DiarySyncContext()
+                try:
+                    self.__sync_diary(chnl, day, diary, context)
+                except Exception as e:
+                    logger.error("[SinkError] %s failed for %s: %s", chnl.name, day, e)
+                    failures.append(f"{chnl.name}/{day}: {e}")
 
         if failures:
             raise RuntimeError("; ".join(failures))
+
+    def __sync_diary(
+        self, provider: SinkProvider, day: date, diary: Diary, context: DiarySyncContext
+    ) -> None:
+        try:
+            self.__write_diary(provider, day, diary, context)
+        except RetryableSinkError as error:
+            logger.warning("[SinkRetry] %s for %s: %s", provider.name, day, error)
+            sleep(SINK_RETRY_DELAY_SECONDS)
+            raw_context = provider.ctx_source.fetch_raw_data(day, day)
+            contexts = provider.ctx_trans.to_context(raw_context)
+            self.__write_diary(
+                provider, day, diary, contexts.get(day) or DiarySyncContext()
+            )
+
+    def __write_diary(
+        self, provider: SinkProvider, day: date, diary: Diary, context: DiarySyncContext
+    ) -> None:
+        diary.sync_contexts[provider.name] = context
+        decision = self.sync_guard.evaluate(diary, context)
+        if decision.action == SyncAction.SKIP:
+            return
+
+        data = provider.s_trans.transform(diary, decision)
+        provider.sink.sink_data(day, data, context, decision)

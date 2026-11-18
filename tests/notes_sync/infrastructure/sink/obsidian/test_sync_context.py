@@ -2,6 +2,8 @@ from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from notes_sync.infrastructure.sink.obsidian.path_resolver import ObsidianPathResolver
 from notes_sync.infrastructure.sink.obsidian.sync_context_source import (
     ObsidianSyncContextSource,
@@ -48,13 +50,17 @@ class TestObsidianSyncContextSource:
 
 
 class TestObsidianSyncContextTrans:
-    def test_to_context_existing_file(self):
+    @pytest.mark.parametrize("heading", ["## Time Entries  ", "## Time Entries ##"])
+    def test_to_context_existing_file(self, heading):
         trans = ObsidianSyncContextTrans()
         raw_data = [
             {
                 "date": date(2026, 1, 1),
                 "file_path": "/vault/diary.md",
-                "content": "---\nstatus: current\nsteps: 5000\n---\nContent",
+                "content": (
+                    "---\nstatus: current\nsteps: 5000\n---\nContent\n"
+                    f"{heading}\n- 09:00–10:00: Work"
+                ),
             }
         ]
 
@@ -65,6 +71,7 @@ class TestObsidianSyncContextTrans:
         assert context.remote_id == "/vault/diary.md"
         assert context.status == "current"
         assert context.steps == 5000
+        assert context.has_time_entries
 
     def test_to_context_missing_file(self):
         trans = ObsidianSyncContextTrans()

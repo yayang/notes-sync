@@ -1,16 +1,25 @@
 import json
 import logging
 from datetime import date
+from math import inf
+from time import monotonic
 from typing import Any
 
 import httpx
 
-from notes_sync.core.protocols import DiarySink
+from notes_sync.core.protocols import (
+    SINK_RETRY_DELAY_SECONDS,
+    DiarySink,
+    RetryableSinkError,
+)
 from notes_sync.infrastructure.sink.notion.mapping import DiaryKey
 from notes_sync.models.models import DiarySyncContext
 from notes_sync.models.schema import SyncAction, SyncDecision
 
 logger = logging.getLogger(__name__)
+
+_RICH_TEXT_CONTENT_LIMIT = 2000
+_RICH_TEXT_ARRAY_LIMIT = 100
 
 
 class NotionSink(DiarySink[dict[str, Any]]):
@@ -19,6 +28,7 @@ class NotionSink(DiarySink[dict[str, Any]]):
     def __init__(self, token: str, db_id: str):
         self.token = token
         self.db_id = db_id.replace("-", "")
+        self._writes_paused_until = 0.0
         self._headers = {
             "Authorization": f"Bearer {token}",
             "Notion-Version": "2022-06-28",
@@ -103,26 +113,65 @@ class NotionSink(DiarySink[dict[str, Any]]):
                 # Number type
                 notion_props[key] = {"number": value}
             elif isinstance(value, str):
-                # Rich text type (for time strings)
-                notion_props[key] = {"rich_text": [{"text": {"content": value}}]}
+                notion_props[key] = {"rich_text": self.__rich_text(key, value)}
 
         return notion_props
 
+    def __rich_text(self, key: str, value: str) -> list[dict[str, dict[str, str]]]:
+        """Keep each chunk within the limit even when counted as UTF-16."""
+        chunks = []
+        start = units = 0
+        for index, char in enumerate(value):
+            width = 2 if ord(char) > 0xFFFF else 1
+            if units + width > _RICH_TEXT_CONTENT_LIMIT:
+                chunks.append(value[start:index])
+                if len(chunks) == _RICH_TEXT_ARRAY_LIMIT:
+                    raise ValueError(
+                        f"Notion rich text for {key} exceeds {_RICH_TEXT_ARRAY_LIMIT} elements"
+                    )
+                start = index
+                units = 0
+            units += width
+        chunks.append(value[start:])
+        return [{"text": {"content": chunk}} for chunk in chunks]
+
     def __send_request(self, method: str, url: str, body: dict) -> dict:
-        body_str = json.dumps(body)
-        # logger.debug(
-        #     f"[NotionSink] Method: {method}, URL Len: {len(url)}, Body Len: {len(body_str)}"
-        # )
+        if monotonic() < self._writes_paused_until:
+            raise RuntimeError("Notion write deferred by rate limit")
 
         with httpx.Client() as client:
-            if method == "POST":
-                resp = client.post(url, headers=self._headers, content=body_str)
-            else:
-                resp = client.patch(url, headers=self._headers, content=body_str)
-
-            if resp.status_code not in (200, 201):
-                logger.error(
-                    f"[NotionSink] {method} failed: {resp.status_code} {resp.text}"
+            try:
+                resp = client.request(
+                    method, url, headers=self._headers, content=json.dumps(body)
                 )
-                raise Exception(f"Notion API failed: {resp.status_code}")
+            except (httpx.ConnectError, httpx.ConnectTimeout) as error:
+                raise RetryableSinkError(f"Notion connection failed: {error}") from error
+
+        if resp.status_code in (200, 201):
             return resp.json()
+
+        logger.error(f"[NotionSink] {method} failed: {resp.status_code} {resp.text}")
+        message = f"Notion API failed: {resp.status_code}"
+        if resp.status_code == 429:
+            delay = self.__rate_limit_delay(resp)
+            self._writes_paused_until = monotonic() + delay
+            if delay <= SINK_RETRY_DELAY_SECONDS:
+                raise RetryableSinkError(message)
+        raise RuntimeError(message)
+
+    def __rate_limit_delay(self, response: httpx.Response) -> float:
+        """Return the cooldown or defer writes for the rest of this run."""
+        try:
+            delay = float(int(response.headers.get("Retry-After", "")))
+            error = response.json()
+        except (ValueError, OverflowError):
+            return inf
+        if not isinstance(error, dict) or delay < 0:
+            return inf
+        details = error.get("additional_data")
+        if (
+            isinstance(details, dict)
+            and details.get("rate_limit_reason") == "public_api_request_blocked"
+        ):
+            return inf
+        return delay

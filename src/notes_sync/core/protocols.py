@@ -10,6 +10,11 @@ from notes_sync.models.schema import SyncDecision
 
 # 定义泛型变量 T
 T = TypeVar("T")
+SINK_RETRY_DELAY_SECONDS = 5
+
+
+class RetryableSinkError(RuntimeError):
+    """The write did not take effect and can be sent again after the retry delay."""
 
 
 class DiarySource(ABC):
